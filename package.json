@@ -1,0 +1,9 @@
+{
+  "name": "sayetech-investor-dataroom-root",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "npm run dev --prefix web",
+    "dev:web": "npm run dev --prefix web"
+  }
+}
