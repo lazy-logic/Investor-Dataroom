@@ -28,17 +28,17 @@ export default function DemoNdaPage() {
             </div>
           </Link>
           <nav className="flex items-center gap-3">
-            <Link href="/demo/dashboard" className="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 hover:bg-red-50 hover:text-brand-red transition">
+            <Link href="/dashboard" className="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 hover:bg-red-50 hover:text-brand-red transition">
               Dashboard
             </Link>
-            <Link href="/demo/documents" className="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 hover:bg-red-50 hover:text-brand-red transition">
+            <Link href="/documents" className="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 hover:bg-red-50 hover:text-brand-red transition">
               Documents
             </Link>
-            <Link href="/demo/nda" className="rounded-lg bg-brand-red px-4 py-2 text-sm font-medium text-white shadow-md">
+            <Link href="/nda" className="rounded-lg bg-brand-red px-4 py-2 text-sm font-medium text-white shadow-md">
               NDA
             </Link>
             <Link href="/" className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition">
-              Exit Demo
+              Exit Data Room
             </Link>
           </nav>
         </div>
@@ -264,7 +264,7 @@ export default function DemoNdaPage() {
                     className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm shadow-sm focus-visible:border-brand-green focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green"
                   />
                 </div>
-                <Link href="/demo/dashboard">
+                <Link href="/dashboard">
                   <Button
                     variant="cta"
                     size="lg"

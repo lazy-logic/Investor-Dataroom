@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 export default function InvestorLayout({
@@ -22,15 +23,24 @@ export default function InvestorLayout({
           </span>
         </div>
         <nav className="flex flex-1 flex-col gap-1 text-sm">
-          <span className="rounded-md bg-slate-100 px-3 py-2 font-medium">
+          <Link
+            href="/dashboard"
+            className="rounded-md bg-slate-100 px-3 py-2 font-medium"
+          >
             Dashboard
-          </span>
-          <span className="rounded-md px-3 py-2 text-slate-600">
+          </Link>
+          <Link
+            href="/documents"
+            className="rounded-md px-3 py-2 text-slate-600 hover:bg-slate-100"
+          >
             Documents
-          </span>
-          <span className="rounded-md px-3 py-2 text-slate-600">
+          </Link>
+          <Link
+            href="/activity"
+            className="rounded-md px-3 py-2 text-slate-600 hover:bg-slate-100"
+          >
             Activity
-          </span>
+          </Link>
         </nav>
       </aside>
       <div className="flex min-h-screen flex-1 flex-col">

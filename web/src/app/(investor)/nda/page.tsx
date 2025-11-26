@@ -186,6 +186,9 @@ export default function NdaPage() {
               disabled={!agreed || !signature.trim() || accepting}
               className="w-full md:w-auto whitespace-nowrap"
             >
+              {accepting && (
+                <span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-200 border-t-white" />
+              )}
               {accepting ? "Accepting..." : "Accept NDA & Enter"}
             </Button>
           </div>

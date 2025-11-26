@@ -75,16 +75,6 @@ export default function RequestAccessPage() {
               We&apos;ve recorded your access request. SAYeTECH will review and contact you
               by email with next steps and secure access details.
             </p>
-            
-            {process.env.NODE_ENV === 'development' && (
-              <div className="rounded-md bg-blue-50 border border-blue-200 p-3">
-                <p className="text-xs text-blue-800">
-                  <strong>Development Note:</strong> The backend API doesn&apos;t have a public access request endpoint yet. 
-                  This is using a mock response. For testing login, use an approved email address.
-                </p>
-              </div>
-            )}
-            
             <p className="text-sm text-slate-600">
               If you don&apos;t receive a response within a few business days, please reach out to the SAYeTECH team.
             </p>

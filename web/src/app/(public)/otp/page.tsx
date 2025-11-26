@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
@@ -67,6 +67,14 @@ function OtpInput({ value, onChange, disabled }: OtpInputProps) {
 }
 
 export default function OtpPage() {
+  return (
+    <Suspense fallback={null}>
+      <OtpPageContent />
+    </Suspense>
+  );
+}
+
+function OtpPageContent() {
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -1,54 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Alert } from "@/components/ui/alert";
-import { apiClient, APIClientError } from "@/lib/api-client";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
   const router = useRouter();
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    
-    if (!email) {
-      setError("Please enter your email address");
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-      setSuccess(false);
-
-      const response = await apiClient.requestOTP(email);
-      
-      setSuccess(true);
-      
-      // Redirect to OTP verification page after 1 second
-      setTimeout(() => {
-        router.push(`/otp?email=${encodeURIComponent(email)}`);
-      }, 1000);
-    } catch (err) {
-      console.error("Failed to request OTP:", err);
-      
-      if (err instanceof APIClientError) {
-        setError(err.message);
-      } else {
-        setError("Failed to send login code. Please try again.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
+  const [loading, setLoading] = useState(false);
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-col gap-4">
@@ -57,36 +18,26 @@ export default function LoginPage() {
           Investor Login
         </h1>
         <p className="text-sm text-slate-700">
-          Enter your email to receive a one-time login code for secure access.
+          Enter your email address to continue to the NDA and investor dashboard.
         </p>
-        <form className="space-y-4" onSubmit={handleSubmit}>
+        <form className="space-y-4">
           <Input 
             label="Email" 
             type="email" 
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={loading || success}
-            required 
+            placeholder="Enter your email address"
           />
-          
-          {error && (
-            <Alert variant="error">
-              {error}
-            </Alert>
-          )}
-          
-          {success && (
-            <Alert variant="success">
-              Login code sent! Redirecting to verification...
-            </Alert>
-          )}
-          
           <Button 
-            type="submit" 
+            type="button" 
             className="w-full"
-            disabled={loading || success}
+            onClick={() => {
+              setLoading(true);
+              router.push("/nda");
+            }}
           >
-            {loading ? "Sending..." : success ? "Code Sent!" : "Send Login Code"}
+            {loading && (
+              <span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-200 border-t-white" />
+            )}
+            {loading ? "Loading..." : "Access Data Room"}
           </Button>
         </form>
       </Card>

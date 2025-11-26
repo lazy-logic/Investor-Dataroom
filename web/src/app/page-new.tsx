@@ -12,10 +12,10 @@ export default function HomePage() {
         </p>
         <div className="flex flex-wrap justify-center gap-4">
           <Link
-            href="/demo/dashboard"
+            href="/dashboard"
             className="rounded-lg bg-brand-green px-6 py-3 text-lg font-semibold text-white shadow-lg hover:bg-brand-green/90"
           >
-            View Demo Data Room
+            View Data Room
           </Link>
           <Link
             href="/request-access"

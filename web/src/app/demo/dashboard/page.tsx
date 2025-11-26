@@ -22,17 +22,17 @@ export default function DemoDashboardPage() {
             </div>
           </Link>
           <nav className="flex items-center gap-3">
-            <Link href="/demo/dashboard" className="rounded-lg bg-brand-red px-4 py-2 text-sm font-medium text-white shadow-md">
+            <Link href="/dashboard" className="rounded-lg bg-brand-red px-4 py-2 text-sm font-medium text-white shadow-md">
               Dashboard
             </Link>
-            <Link href="/demo/documents" className="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 hover:bg-red-50 hover:text-brand-red transition">
+            <Link href="/documents" className="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 hover:bg-red-50 hover:text-brand-red transition">
               Documents
             </Link>
-            <Link href="/demo/nda" className="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 hover:bg-red-50 hover:text-brand-red transition">
+            <Link href="/nda" className="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 hover:bg-red-50 hover:text-brand-red transition">
               NDA
             </Link>
             <Link href="/" className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition">
-              Exit Demo
+              Exit Data Room
             </Link>
           </nav>
         </div>
@@ -94,7 +94,7 @@ export default function DemoDashboardPage() {
                 <div>
                   <h2 className="text-sm font-medium text-white/90">Access Status</h2>
                   <p className="mt-3 text-3xl font-bold text-white">Active</p>
-                  <p className="mt-1 text-sm text-white/80">Full access - Demo mode</p>
+                  <p className="mt-1 text-sm text-white/80">Full access to investor data room</p>
                 </div>
                 <div className="rounded-lg bg-white/20 p-3 backdrop-blur-sm">
                   <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -109,7 +109,7 @@ export default function DemoDashboardPage() {
           <div>
             <h2 className="mb-4 text-lg font-semibold text-slate-900">Start Your Review</h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <Link href="/demo/documents" className="group">
+              <Link href="/documents" className="group">
                 <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-brand-red to-red-600 p-6 shadow-lg transition hover:shadow-xl hover:scale-105">
                   <div className="absolute top-0 right-0 h-24 w-24 rounded-full bg-white/10 -mr-8 -mt-8" />
                   <div className="relative">
@@ -124,7 +124,7 @@ export default function DemoDashboardPage() {
                 </div>
               </Link>
 
-              <Link href="/demo/documents" className="group">
+              <Link href="/documents" className="group">
                 <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-brand-red to-red-600 p-6 shadow-lg transition hover:shadow-xl hover:scale-105">
                   <div className="absolute top-0 right-0 h-24 w-24 rounded-full bg-white/10 -mr-8 -mt-8" />
                   <div className="relative">
@@ -139,7 +139,7 @@ export default function DemoDashboardPage() {
                 </div>
               </Link>
 
-              <Link href="/demo/documents" className="group">
+              <Link href="/documents" className="group">
                 <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-brand-red to-red-600 p-6 shadow-lg transition hover:shadow-xl hover:scale-105">
                   <div className="absolute top-0 right-0 h-24 w-24 rounded-full bg-white/10 -mr-8 -mt-8" />
                   <div className="relative">
@@ -154,7 +154,7 @@ export default function DemoDashboardPage() {
                 </div>
               </Link>
 
-              <Link href="/demo/documents" className="group">
+              <Link href="/documents" className="group">
                 <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-brand-red to-red-600 p-6 shadow-lg transition hover:shadow-xl hover:scale-105">
                   <div className="absolute top-0 right-0 h-24 w-24 rounded-full bg-white/10 -mr-8 -mt-8" />
                   <div className="relative">
@@ -169,7 +169,7 @@ export default function DemoDashboardPage() {
                 </div>
               </Link>
 
-              <Link href="/demo/documents" className="group">
+              <Link href="/documents" className="group">
                 <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-brand-red to-red-600 p-6 shadow-lg transition hover:shadow-xl hover:scale-105">
                   <div className="absolute top-0 right-0 h-24 w-24 rounded-full bg-white/10 -mr-8 -mt-8" />
                   <div className="relative">
@@ -184,7 +184,7 @@ export default function DemoDashboardPage() {
                 </div>
               </Link>
 
-              <Link href="/demo/documents" className="group">
+              <Link href="/documents" className="group">
                 <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-brand-red to-red-600 p-6 shadow-lg transition hover:shadow-xl hover:scale-105">
                   <div className="absolute top-0 right-0 h-24 w-24 rounded-full bg-white/10 -mr-8 -mt-8" />
                   <div className="relative">
@@ -193,7 +193,7 @@ export default function DemoDashboardPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                       </svg>
                     </div>
-                    <h3 className="font-semibold text-white mb-1">Product Demo</h3>
+                    <h3 className="font-semibold text-white mb-1">Product Overview</h3>
                     <p className="text-sm text-white/90">Platform walkthrough</p>
                   </div>
                 </div>

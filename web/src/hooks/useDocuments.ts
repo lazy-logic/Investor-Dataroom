@@ -20,7 +20,14 @@ export function useCategories(parentId?: string) {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiClient.getCategories(parentId);
+      const params = parentId ? `?parent_id=${encodeURIComponent(parentId)}` : "";
+      const response = await fetch(`/api/documents/categories${params}`);
+
+      if (!response.ok) {
+        throw new APIClientError(`Failed to fetch categories (HTTP ${response.status})`, response.status);
+      }
+
+      const data = (await response.json()) as DocumentCategoryResponse[];
       setCategories(data);
     } catch (err) {
       const message = err instanceof APIClientError ? err.message : 'Failed to fetch categories';
@@ -120,7 +127,13 @@ export function useDocumentDownload() {
       setDownloading(true);
       setError(null);
 
-      const blob = await apiClient.downloadDocument(documentId);
+      const response = await fetch(`/api/documents/${documentId}/download`);
+
+      if (!response.ok) {
+        throw new APIClientError(`Download failed (HTTP ${response.status})`, response.status);
+      }
+
+      const blob = await response.blob();
 
       // Create download link
       const url = window.URL.createObjectURL(blob);
@@ -158,7 +171,13 @@ export function useDocumentView() {
       setViewing(true);
       setError(null);
 
-      const blob = await apiClient.viewDocument(documentId);
+      const response = await fetch(`/api/documents/${documentId}/view`);
+
+      if (!response.ok) {
+        throw new APIClientError(`View failed (HTTP ${response.status})`, response.status);
+      }
+
+      const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
 
       // Open in new tab

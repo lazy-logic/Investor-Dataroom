@@ -20,7 +20,10 @@ import type {
   APIError,
 } from './api-types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL !== undefined
+    ? process.env.NEXT_PUBLIC_API_BASE_URL
+    : '';
 
 /**
  * Custom API Error class for better error handling
@@ -198,6 +201,23 @@ export class APIClient {
   }
 
   /**
+   * Demo auto-login for investor preview
+   * Skips OTP and NDA steps and returns a mock access token
+   */
+  async demoAutoLogin(email: string): Promise<TokenResponse> {
+    const response = await this.request<TokenResponse>('/api/demo/auto-login', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+
+    if (response.access_token) {
+      this.setToken(response.access_token);
+    }
+
+    return response;
+  }
+
+  /**
    * Get current authenticated user
    */
   async getCurrentUser(): Promise<UserResponse> {
@@ -347,23 +367,11 @@ export class APIClient {
     company?: string;
     message?: string;
   }): Promise<{ message: string; request_id: string }> {
-    // Temporary mock implementation until backend adds this endpoint
-    console.warn('Access request endpoint not implemented in backend - using mock response');
-    
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Return mock success response
-    return {
-      message: 'Access request submitted successfully',
-      request_id: `mock_${Date.now()}`
-    };
-    
-    // Uncomment when backend implements this endpoint:
-    // return this.request('/api/access-requests', {
-    //   method: 'POST',
-    //   body: JSON.stringify(data),
-    // });
+    // Call local mock API route so the request appears as a normal 200 in the Network panel
+    return this.request<{ message: string; request_id: string }>('/api/access-requests', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 
   // ==================== Admin Endpoints ====================

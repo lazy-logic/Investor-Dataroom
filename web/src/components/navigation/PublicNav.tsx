@@ -35,12 +35,6 @@ export function PublicNav({ showBackButton = false }: PublicNavProps) {
             </Link>
           )}
           <Link
-            href="/demo/dashboard"
-            className="rounded-lg border border-brand-red/20 bg-brand-red/5 px-4 py-2 text-sm font-medium text-brand-red transition hover:bg-brand-red/10"
-          >
-            View Demo
-          </Link>
-          <Link
             href="/login"
             className="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
           >
