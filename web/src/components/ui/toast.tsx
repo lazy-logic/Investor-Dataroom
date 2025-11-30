@@ -74,42 +74,43 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      {portalElement &&
-        createPortal(
-          <div className="pointer-events-none fixed inset-0 z-50 flex items-end justify-end px-4 py-6 sm:items-start sm:justify-end">
-            <div className="flex w-full flex-col items-center space-y-2 sm:items-end">
-              {toasts.map((toast) => (
-                <div
-                  key={toast.id}
-                  className="pointer-events-auto w-full max-w-sm overflow-hidden rounded-lg border border-slate-200 bg-white/95 shadow-lg ring-1 ring-black/5 backdrop-blur-sm animate-fade-in-up transition-transform"
-                >
-                  <div className="p-3">
-                    {toast.title && (
-                      <p className="text-sm font-medium text-slate-900">
-                        {toast.title}
-                      </p>
-                    )}
-                    {toast.description && (
-                      <p className="mt-1 text-xs text-slate-600">
-                        {toast.description}
-                      </p>
-                    )}
-                  </div>
+      {portalElement
+        ? createPortal(
+            <div className="pointer-events-none fixed inset-0 z-50 flex items-end justify-end px-4 py-6 sm:items-start sm:justify-end">
+              <div className="flex w-full flex-col items-center space-y-2 sm:items-end">
+                {toasts.map((toast) => (
                   <div
-                    className={`h-0.5 w-full ${
-                      toast.variant === "success"
-                        ? "bg-brand-green"
-                        : toast.variant === "error"
-                        ? "bg-brand-red"
-                        : "bg-brand-red/70"
-                    }`}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>,
-          portalElement,
-        )}
+                    key={toast.id}
+                    className="pointer-events-auto w-full max-w-sm overflow-hidden rounded-lg border border-slate-200 bg-white/95 shadow-lg ring-1 ring-black/5 backdrop-blur-sm animate-fade-in-up transition-transform"
+                  >
+                    <div className="p-3">
+                      {toast.title && (
+                        <p className="text-sm font-medium text-slate-900">
+                          {toast.title}
+                        </p>
+                      )}
+                      {toast.description && (
+                        <p className="mt-1 text-xs text-slate-600">
+                          {toast.description}
+                        </p>
+                      )}
+                    </div>
+                    <div
+                      className={`h-0.5 w-full ${
+                        toast.variant === "success"
+                          ? "bg-brand-green"
+                          : toast.variant === "error"
+                          ? "bg-brand-red"
+                          : "bg-brand-red/70"
+                      }`}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>,
+            portalElement,
+          )
+        : null}
     </ToastContext.Provider>
   );
 }
