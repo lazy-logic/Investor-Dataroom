@@ -105,7 +105,7 @@ export async function submitAccessRequest(
   };
 
   try {
-    const res = await fetch(`${API_BASE_URL}/api/access-requests/`, {
+    const res = await fetch(`/api/access-requests`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -114,16 +114,29 @@ export async function submitAccessRequest(
     });
 
     if (!res.ok) {
-      const text = await res.text();
+      let message = "Unable to submit request.";
+      try {
+        const errorBody = (await res.json()) as { detail?: string };
+        if (typeof errorBody.detail === "string") {
+          message = errorBody.detail;
+        }
+      } catch {
+        const text = await res.text().catch(() => "");
+        if (text) {
+          message = text;
+        } else {
+          message = `Request failed with status ${res.status}`;
+        }
+      }
       return {
         ok: false,
-        error: text || `Request failed with status ${res.status}`,
+        error: message,
       };
     }
 
     const data = (await res.json()) as Record<string, unknown>;
     const record: AccessRequestRecord = {
-      id: String(data.id ?? ""),
+      id: String((data as any).id ?? (data as any).request_id ?? ""),
       email: input.email,
       fullName: input.fullName,
       organization: input.organization,

@@ -7,9 +7,9 @@ interface AlertProps {
 
 const variantClasses: Record<NonNullable<AlertProps["variant"]>, string> = {
   success:
-    "border-emerald-200 bg-emerald-50 text-emerald-800",
-  error: "border-red-200 bg-red-50 text-red-800",
-  info: "border-sky-200 bg-sky-50 text-sky-800",
+    "border-brand-green/40 bg-brand-green/5 text-brand-green",
+  error: "border-brand-red/40 bg-brand-red/5 text-brand-red",
+  info: "border-slate-300 bg-slate-50 text-slate-800",
 };
 
 export function Alert({ variant = "info", children }: AlertProps) {

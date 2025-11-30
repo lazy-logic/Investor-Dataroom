@@ -12,15 +12,15 @@ export interface ButtonProps
 }
 
 const baseClasses =
-  "inline-flex items-center justify-center font-medium rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-green disabled:opacity-60 disabled:cursor-not-allowed";
+  "inline-flex items-center justify-center font-medium rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-red disabled:opacity-60 disabled:cursor-not-allowed";
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "bg-brand-green text-brand-white hover:bg-brand-green focus-visible:ring-brand-green",
+    "bg-brand-red text-brand-white hover:bg-brand-red/90 focus-visible:ring-brand-red",
   secondary:
     "bg-slate-100 text-slate-900 hover:bg-slate-200 focus-visible:ring-slate-400",
   ghost:
-    "bg-transparent text-slate-700 hover:bg-slate-100 focus-visible:ring-slate-300",
+    "bg-transparent text-brand-red hover:bg-brand-red/5 focus-visible:ring-brand-red/40",
   cta:
     "bg-brand-red text-white hover:bg-brand-red/90 focus-visible:ring-brand-red",
 };

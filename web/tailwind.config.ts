@@ -11,7 +11,7 @@ const config: Config = {
       colors: {
         // Core SAYeTECH brand accents
         "brand-red": "#cc1934", // Splatter Movie Red
-        "brand-green": "#6b7280", // Grey-500 (replacing lemon green)
+        "brand-green": "#238405", // SAYeTECH primary green
         "brand-pink": "#eeb1ba", // Pink shade (RGB 238, 177, 186)
         "brand-white": "#ffffff",
       },
@@ -24,6 +24,20 @@ const config: Config = {
           "Segoe UI",
           "sans-serif",
         ],
+      },
+      keyframes: {
+        "fade-in": {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        "fade-in-up": {
+          "0%": { opacity: "0", transform: "translateY(8px) scale(0.98)" },
+          "100%": { opacity: "1", transform: "translateY(0) scale(1)" },
+        },
+      },
+      animation: {
+        "fade-in": "fade-in 150ms ease-out",
+        "fade-in-up": "fade-in-up 180ms ease-out",
       },
     },
   },

@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
-import { apiClient, APIClientError } from "@/lib/api-client";
+import { submitAccessRequest, type AccessRequestInput } from "@/lib/api";
+import type { InvestorType } from "@/lib/types";
 
 export default function RequestAccessPage() {
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
@@ -23,6 +24,8 @@ export default function RequestAccessPage() {
     const email = String(formData.get("email") ?? "").trim();
     const name = String(formData.get("fullName") ?? "").trim();
     const company = String(formData.get("organization") ?? "").trim();
+    const roleTitle = String(formData.get("roleTitle") ?? "").trim();
+    const investorTypeRaw = String(formData.get("investorType") ?? "").trim();
     const message = String(formData.get("message") ?? "").trim();
 
     if (!email || !name || !company) {
@@ -36,22 +39,42 @@ export default function RequestAccessPage() {
       setErrorMessage(null);
       setStatus("idle");
 
-      await apiClient.submitAccessRequest({
-        name,
+      const allowedTypes: InvestorType[] = [
+        "angel",
+        "vc",
+        "family-office",
+        "strategic",
+        "other",
+      ];
+      const typeValue = (investorTypeRaw || "other") as InvestorType;
+      const investorType: InvestorType = allowedTypes.includes(typeValue)
+        ? typeValue
+        : "other";
+
+      const payload: AccessRequestInput = {
         email,
-        company,
+        fullName: name,
+        organization: company,
+        roleTitle,
+        investorType,
         message: message || undefined,
-      });
+      };
+
+      const result = await submitAccessRequest(payload);
+
+      if (!result.ok) {
+        setErrorMessage(
+          result.error ||
+            "Unable to submit your request. Please try again or contact SAYeTECH.",
+        );
+        setStatus("error");
+        return;
+      }
 
       setStatus("success");
     } catch (err) {
       console.error("Failed to submit access request:", err);
-      
-      if (err instanceof APIClientError) {
-        setErrorMessage(err.message);
-      } else {
-        setErrorMessage("Unable to submit your request. Please try again.");
-      }
+      setErrorMessage("Unable to submit your request. Please try again.");
       setStatus("error");
     } finally {
       setIsSubmitting(false);
@@ -61,7 +84,7 @@ export default function RequestAccessPage() {
   if (status === "success") {
     return (
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-        <Card className="border-slate-200">
+        <Card className="border-slate-200 bg-white/90 shadow-sm">
           <div className="space-y-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
               <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -76,7 +99,9 @@ export default function RequestAccessPage() {
               by email with next steps and secure access details.
             </p>
             <p className="text-sm text-slate-600">
-              If you don&apos;t receive a response within a few business days, please reach out to the SAYeTECH team.
+              If your request is approved, you&apos;ll receive an email with a secure login
+              link. You&apos;ll sign our NDA digitally and then be taken straight to the
+              investor dashboard.
             </p>
             <div className="pt-4">
               <Link
@@ -94,18 +119,31 @@ export default function RequestAccessPage() {
 
   return (
     <div className="mx-auto grid w-full max-w-5xl gap-10 md:grid-cols-2">
-      <div className="space-y-4">
+      <div className="space-y-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-red">
+          Investor Access Request
+        </p>
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-          Request Access to SAYeTECH Data Room
+          Request access to SAYeTECH&apos;s investor data room
         </h1>
         <p className="text-sm text-slate-700">
-          Submit your details to request secure access to SAYeTECH&apos;s investor
-          data room. The team will review and confirm access via email.
+          Share a few details about yourself and your organization. We&apos;ll review
+          your request, confirm fit, and send you a secure login link.
         </p>
-        <p className="text-xs text-slate-500">
-          Fields marked as required help the SAYeTECH team understand who you are
-          and how best to process your request.
-        </p>
+        <ul className="space-y-2 text-xs text-slate-600">
+          <li>
+            <span className="font-medium text-slate-800">1.</span> Submit your
+            access request with your fund details.
+          </li>
+          <li>
+            <span className="font-medium text-slate-800">2.</span> SAYeTECH
+            reviews and approves.
+          </li>
+          <li>
+            <span className="font-medium text-slate-800">3.</span> You receive
+            an OTP login &amp; NDA link to enter the data room.
+          </li>
+        </ul>
         <div className="pt-4">
           <Link
             href="/login"
@@ -115,7 +153,7 @@ export default function RequestAccessPage() {
           </Link>
         </div>
       </div>
-      <Card className="border-slate-200">
+      <Card className="border-slate-200 bg-white/95 shadow-sm">
         <form className="space-y-4" onSubmit={handleSubmit}>
           <Input name="email" label="Email" type="email" required />
           <Input name="fullName" label="Full name" required />

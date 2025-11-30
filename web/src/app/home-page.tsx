@@ -1,9 +1,43 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PublicNav } from "@/components/navigation/PublicNav";
+import { apiClient, APIClientError } from "@/lib/api-client";
 
 export default function LandingPage() {
+  const [apiStatus, setApiStatus] = useState<string | null>(null);
+  const [apiStatusError, setApiStatusError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkApi = async () => {
+      try {
+        const result = await apiClient.healthCheck();
+        if (!cancelled) {
+          setApiStatus(result.status ?? "ok");
+          setApiStatusError(null);
+        }
+      } catch (err) {
+        if (cancelled) return;
+        let message = "API unavailable";
+        if (err instanceof APIClientError) {
+          message = err.message || message;
+        }
+        setApiStatus(null);
+        setApiStatusError(message);
+      }
+    };
+
+    void checkApi();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   return (
     <div className="min-h-screen bg-white" style={{ fontFamily: 'Helvetica !important' }}>
       <PublicNav showBackButton={false} />
@@ -68,6 +102,9 @@ export default function LandingPage() {
                   <p className="text-xs text-slate-600">Doc Categories</p>
                 </div>
               </div>
+              <p className="pt-1 text-[11px] text-slate-500">
+                API status: {apiStatus ? "Online" : apiStatusError ? "Unavailable" : "Checking..."}
+              </p>
             </div>
 
             {/* Hero Visual Card */}

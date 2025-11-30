@@ -11,7 +11,8 @@ export interface OTPRequest {
 
 export interface OTPResponse {
   message: string;
-  expires_in_minutes: number;
+  expires_at: string;
+  attempts_remaining: number;
 }
 
 export interface OTPVerify {
@@ -22,6 +23,7 @@ export interface OTPVerify {
 export interface TokenResponse {
   access_token: string;
   token_type: string;
+  user: Record<string, unknown>;
 }
 
 // ==================== User Types ====================
