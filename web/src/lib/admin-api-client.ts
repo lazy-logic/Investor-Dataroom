@@ -20,6 +20,8 @@ export interface AdminUser {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  permission_level_id?: string | null;
+  permission_level?: PermissionLevelResponse | null;
 }
 
 export interface AdminLoginResponse {
@@ -33,12 +35,14 @@ export interface AdminCreatePayload {
   password: string;
   full_name: string;
   role?: AdminRole;
+  permission_level_id?: string | null;
 }
 
 export interface AdminUpdatePayload {
   full_name?: string | null;
   role?: AdminRole | null;
   is_active?: boolean | null;
+  permission_level_id?: string | null;
 }
 
 export interface AdminAccessRequest {

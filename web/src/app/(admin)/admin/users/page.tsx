@@ -14,8 +14,8 @@ import {
   adminApiClient,
   type AdminUser,
   type AdminRole,
-  type AdminUserPermissions,
 } from "@/lib/admin-api-client";
+import type { PermissionLevelResponse } from "@/lib/api-types";
 import { APIClientError } from "@/lib/api-client";
 
 interface FormState {
@@ -23,6 +23,7 @@ interface FormState {
   fullName: string;
   password: string;
   role: AdminRole;
+  permissionLevelId: string;
 }
 
 export default function AdminUsersPage() {
@@ -31,12 +32,14 @@ export default function AdminUsersPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [permissionLevels, setPermissionLevels] = useState<PermissionLevelResponse[]>([]);
 
   const [form, setForm] = useState<FormState>({
     email: "",
     fullName: "",
     password: "",
     role: "user",
+    permissionLevelId: "",
   });
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -45,29 +48,28 @@ export default function AdminUsersPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editFullName, setEditFullName] = useState("");
   const [editRole, setEditRole] = useState<AdminRole>("user");
+  const [editPermissionLevelId, setEditPermissionLevelId] = useState<string>("");
   const [editError, setEditError] = useState<string | null>(null);
   const [editSaving, setEditSaving] = useState(false);
 
   const [actionId, setActionId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const [selectedPermissionsUser, setSelectedPermissionsUser] =
-    useState<AdminUser | null>(null);
-  const [permissions, setPermissions] = useState<AdminUserPermissions | null>(
-    null,
-  );
-  const [permissionsLoading, setPermissionsLoading] = useState(false);
-  const [permissionsError, setPermissionsError] = useState<string | null>(null);
   const { showToast } = useToast();
   const [confirmingDeactivateUser, setConfirmingDeactivateUser] =
     useState<AdminUser | null>(null);
 
-  const loadUsers = async () => {
+  const loadUsers = async (options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false;
+
     try {
-      setLoading(true);
-      setError(null);
+      if (!silent) {
+        setLoading(true);
+        setError(null);
+      }
       const data = await adminApiClient.listUsers();
       setUsers(data);
+      setError(null);
     } catch (err) {
       let message = "Unable to load users";
       if (err instanceof APIClientError) {
@@ -80,7 +82,26 @@ export default function AdminUsersPage() {
         description: message,
       });
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
+    }
+  };
+
+  const loadPermissionLevels = async () => {
+    try {
+      const levels = await adminApiClient.listPermissionLevels();
+      setPermissionLevels(levels);
+    } catch (err) {
+      let message = "Unable to load permission levels";
+      if (err instanceof APIClientError) {
+        message = err.message || message;
+      }
+      showToast({
+        variant: "error",
+        title: "Permissions unavailable",
+        description: message,
+      });
     }
   };
 
@@ -95,6 +116,7 @@ export default function AdminUsersPage() {
   useEffect(() => {
     void loadCurrentAdminRole();
     void loadUsers();
+    void loadPermissionLevels();
   }, []);
 
   const handleCreate = async (event: React.FormEvent) => {
@@ -115,12 +137,19 @@ export default function AdminUsersPage() {
         full_name: form.fullName,
         password: form.password,
         role: form.role,
+        permission_level_id: form.permissionLevelId || null,
       });
 
-      setForm({ email: "", fullName: "", password: "", role: "user" });
+      setForm({
+        email: "",
+        fullName: "",
+        password: "",
+        role: "user",
+        permissionLevelId: "",
+      });
 
-      await loadUsers();
       setCreateModalOpen(false);
+      void loadUsers({ silent: true });
     } catch (err) {
       let message = "Unable to create user";
       if (err instanceof APIClientError) {
@@ -141,6 +170,7 @@ export default function AdminUsersPage() {
     setEditingId(user.id);
     setEditFullName(user.full_name);
     setEditRole(user.role);
+    setEditPermissionLevelId(user.permission_level_id ?? "");
     setEditError(null);
   };
 
@@ -148,6 +178,7 @@ export default function AdminUsersPage() {
     setEditingId(null);
     setEditFullName("");
     setEditRole("user");
+    setEditPermissionLevelId("");
     setEditError(null);
   };
 
@@ -160,26 +191,13 @@ export default function AdminUsersPage() {
       setEditSaving(true);
       setEditError(null);
 
-      const updated = await adminApiClient.updateUser(editingId, {
+      await adminApiClient.updateUser(editingId, {
         full_name: editFullName,
         role: editRole,
+        permission_level_id: editPermissionLevelId || null,
       });
-
-      setUsers((prev) =>
-        prev.map((user) => {
-          if (user.id !== editingId) return user;
-          if (updated && typeof updated === "object" && "id" in updated) {
-            return updated as AdminUser;
-          }
-          return {
-            ...user,
-            full_name: editFullName,
-            role: editRole,
-          };
-        }),
-      );
-
       cancelEdit();
+      void loadUsers({ silent: true });
     } catch (err) {
       let message = "Unable to update user";
       if (err instanceof APIClientError) {
@@ -210,7 +228,7 @@ export default function AdminUsersPage() {
       setActionId(user.id);
       setActionError(null);
       await adminApiClient.deactivateUser(user.id);
-      await loadUsers();
+      void loadUsers({ silent: true });
       showToast({
         variant: "success",
         title: "User deactivated",
@@ -238,43 +256,12 @@ export default function AdminUsersPage() {
     setConfirmingDeactivateUser(null);
   };
 
-  const handleViewPermissions = async (user: AdminUser) => {
-    try {
-      setPermissionsLoading(true);
-      setPermissionsError(null);
-      setSelectedPermissionsUser(user);
-      const data = await adminApiClient.getUserPermissions(user.id);
-      setPermissions(data);
-    } catch (err) {
-      let message = "Unable to load user permissions";
-      if (err instanceof APIClientError) {
-        message = err.message || message;
-      }
-      setPermissionsError(message);
-      showToast({
-        variant: "error",
-        title: "Unable to load permissions",
-        description: message,
-      });
-      setPermissions(null);
-    } finally {
-      setPermissionsLoading(false);
-    }
-  };
-
-  const closePermissionsModal = () => {
-    if (permissionsLoading) return;
-    setSelectedPermissionsUser(null);
-    setPermissions(null);
-    setPermissionsError(null);
-  };
-
   const handleActivate = async (user: AdminUser) => {
     try {
       setActionId(user.id);
       setActionError(null);
       await adminApiClient.activateUser(user.id);
-      await loadUsers();
+      void loadUsers({ silent: true });
       showToast({
         variant: "success",
         title: "User activated",
@@ -322,6 +309,7 @@ export default function AdminUsersPage() {
                     fullName: "",
                     password: "",
                     role: "user",
+                    permissionLevelId: "",
                   });
                   setCreateError(null);
                   setCreateModalOpen(true);
@@ -356,6 +344,7 @@ export default function AdminUsersPage() {
                 "Email",
                 "Name",
                 "Role",
+                "Permission level",
                 "Status",
                 ...(isSuperAdmin ? ["Actions"] : []),
               ]}
@@ -372,7 +361,10 @@ export default function AdminUsersPage() {
                     <div className="h-3 w-24 rounded bg-slate-200" />
                   </td>
                   <td className="px-3 py-2">
-                    <div className="h-3 w-20 rounded bg-slate-200" />
+                    <div className="h-3 w-24 rounded bg-slate-200" />
+                  </td>
+                  <td className="px-3 py-2">
+                    <div className="h-3 w-24 rounded bg-slate-200" />
                   </td>
                   {isSuperAdmin && (
                     <td className="px-3 py-2">
@@ -398,15 +390,23 @@ export default function AdminUsersPage() {
                 "Email",
                 "Name",
                 "Role",
+                "Permission level",
                 "Status",
                 ...(isSuperAdmin ? ["Actions"] : []),
               ]}
             >
-              {users.map((user) => (
-                <tr
-                  key={user.id}
-                  className="hover:bg-slate-50/80 transition-colors"
-                >
+              {users.map((user) => {
+                const fallbackPermissionLevel = permissionLevels.find(
+                  (level) => level.id === user.permission_level_id
+                );
+                const permissionLevelName =
+                  user.permission_level?.name ?? fallbackPermissionLevel?.name ?? "—";
+
+                return (
+                  <tr
+                    key={user.id}
+                    className="hover:bg-slate-50/80 transition-colors"
+                  >
                       <td className="px-3 py-2 text-xs font-mono text-slate-800">
                         {user.email}
                       </td>
@@ -415,6 +415,9 @@ export default function AdminUsersPage() {
                       </td>
                       <td className="px-3 py-2 text-xs capitalize text-slate-800">
                         {user.role.replace("_", " ")}
+                      </td>
+                      <td className="px-3 py-2 text-xs text-slate-700">
+                        {permissionLevelName}
                       </td>
                       <td className="px-3 py-2 text-xs">
                         {user.is_active ? (
@@ -433,21 +436,6 @@ export default function AdminUsersPage() {
                               onClick={() => startEdit(user)}
                             >
                               Edit
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="secondary"
-                              disabled={
-                                permissionsLoading &&
-                                selectedPermissionsUser?.id === user.id
-                              }
-                              onClick={() => void handleViewPermissions(user)}
-                            >
-                              {permissionsLoading &&
-                              selectedPermissionsUser?.id === user.id
-                                ? "Loading..."
-                                : "Permissions"}
                             </Button>
                             {user.is_active ? (
                               <Button
@@ -473,8 +461,9 @@ export default function AdminUsersPage() {
                           </div>
                         </td>
                       )}
-                    </tr>
-                  ))}
+                  </tr>
+                );
+              })}
             </DataTable>
           )}
         </Card>
@@ -535,6 +524,28 @@ export default function AdminUsersPage() {
                   <option value="super_admin">Super admin</option>
                 </select>
               </div>
+              <div className="flex flex-col gap-1 text-sm">
+                <label className="text-sm font-medium text-slate-800">
+                  Permission level
+                </label>
+                <select
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-red focus-visible:border-brand-red"
+                  value={form.permissionLevelId}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      permissionLevelId: event.target.value,
+                    }))
+                  }
+                >
+                  <option value="">No level assigned</option>
+                  {permissionLevels.map((level) => (
+                    <option key={level.id} value={level.id}>
+                      {level.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               {createError && <Alert variant="error">{createError}</Alert>}
 
@@ -546,33 +557,6 @@ export default function AdminUsersPage() {
                 {creating ? "Creating..." : "Create user"}
               </Button>
             </form>
-          </Modal>
-          <Modal
-            open={!!selectedPermissionsUser}
-            title="User permissions"
-            description={
-              selectedPermissionsUser
-                ? `Effective permissions for ${selectedPermissionsUser.email}.`
-                : undefined
-            }
-            onClose={closePermissionsModal}
-            size="md"
-          >
-            {permissionsError && (
-              <Alert variant="error">{permissionsError}</Alert>
-            )}
-
-            {permissionsLoading ? (
-              <p className="text-xs text-slate-600">Loading permissions...</p>
-            ) : permissions ? (
-              <pre className="max-h-64 overflow-auto rounded-md bg-slate-950 px-3 py-2 text-[11px] text-slate-50">
-                {JSON.stringify(permissions, null, 2)}
-              </pre>
-            ) : (
-              <p className="text-xs text-slate-600">
-                No permission details available.
-              </p>
-            )}
           </Modal>
           <Modal
             open={!!editingId && isSuperAdmin}
@@ -600,6 +584,23 @@ export default function AdminUsersPage() {
                   <option value="user">User</option>
                   <option value="admin">Admin</option>
                   <option value="super_admin">Super admin</option>
+                </select>
+              </div>
+              <div className="flex flex-col gap-1 text-sm">
+                <label className="text-sm font-medium text-slate-800">
+                  Permission level
+                </label>
+                <select
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-red focus-visible:border-brand-red"
+                  value={editPermissionLevelId}
+                  onChange={(event) => setEditPermissionLevelId(event.target.value)}
+                >
+                  <option value="">No level assigned</option>
+                  {permissionLevels.map((level) => (
+                    <option key={level.id} value={level.id}>
+                      {level.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 

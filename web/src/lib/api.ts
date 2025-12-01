@@ -9,6 +9,13 @@ import type {
   InvestorType,
   NdaTemplate,
 } from "./types";
+import type {
+  NDAAcceptance,
+  NDAContent,
+  OTPResponse,
+  TokenResponse,
+  UserResponse,
+} from "./api-types";
 
 const MOCK_LATENCY_MS = 400;
 const API_BASE_URL =
@@ -21,64 +28,194 @@ function delay(ms: number) {
 
 // ---- Auth / OTP -----------------------------------------------------------
 
+async function extractError(response: Response): Promise<string> {
+  try {
+    const body = (await response.json()) as { detail?: string };
+    if (body.detail) return body.detail;
+  } catch {}
+
+  const text = await response.text().catch(() => "");
+  if (text) return text;
+  return `Request failed with status ${response.status}`;
+}
+
+const jsonHeaders = (token?: string): HeadersInit => ({
+  "Content-Type": "application/json",
+  ...(token ? { Authorization: `Bearer ${token}` } : {}),
+});
+
+const authHeaders = (token: string): HeadersInit => ({
+  Authorization: `Bearer ${token}`,
+});
+
 export async function requestLoginCode(email: string): Promise<{
   ok: boolean;
   error?: string;
 }> {
-  await delay(MOCK_LATENCY_MS);
-  console.log("[mock] requestLoginCode", { email });
-  // TODO: replace with real POST /auth/request-otp
-  return { ok: true };
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/request-otp`, {
+      method: "POST",
+      headers: jsonHeaders(),
+      body: JSON.stringify({ email }),
+    });
+
+    if (!response.ok) {
+      return { ok: false, error: await extractError(response) };
+    }
+
+    // Response body contains metadata but callers only care about success.
+    await response.json().catch(() => ({} as OTPResponse));
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unable to contact authentication service.",
+    };
+  }
 }
 
-export async function verifyLoginCode(code: string): Promise<{
+export async function verifyLoginCode(
+  email: string,
+  code: string,
+): Promise<{
   ok: boolean;
-  userId?: string;
+  token?: string;
+  tokenType?: string;
+  user?: Record<string, unknown>;
   error?: string;
 }> {
-  await delay(MOCK_LATENCY_MS);
-  console.log("[mock] verifyLoginCode", { code });
-  // TODO: replace with real POST /auth/verify-otp
-  if (!code || code.length < 6) {
-    return { ok: false, error: "Invalid code" };
+  if (!email.trim() || !code.trim()) {
+    return { ok: false, error: "Email and verification code are required." };
   }
-  return { ok: true, userId: "mock-user-id" };
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/verify-otp`, {
+      method: "POST",
+      headers: jsonHeaders(),
+      body: JSON.stringify({ email, otp_code: code }),
+    });
+
+    if (!response.ok) {
+      return { ok: false, error: await extractError(response) };
+    }
+
+    const data = (await response.json()) as TokenResponse;
+    return {
+      ok: true,
+      token: data.access_token,
+      tokenType: data.token_type,
+      user: data.user,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unable to verify the provided code.",
+    };
+  }
 }
 
 // ---- Investor profiles ----------------------------------------------------
 
-export async function getCurrentInvestorProfile(): Promise<InvestorProfile | null> {
-  await delay(MOCK_LATENCY_MS);
-  // TODO: replace with real GET /me/profile
-  return null;
+export async function getCurrentInvestorProfile(
+  token: string,
+): Promise<InvestorProfile | null> {
+  if (!token) return null;
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+      headers: authHeaders(token),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) return null;
+      throw new Error(await extractError(response));
+    }
+
+    const data = (await response.json()) as UserResponse & {
+      company?: string | null;
+      role?: string | null;
+    };
+
+    return {
+      id: data.id,
+      fullName: data.name ?? data.email,
+      organization: data.company ?? "",
+      roleTitle: data.role ?? "",
+      investorType: "other",
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    };
+  } catch (error) {
+    console.error("getCurrentInvestorProfile error", error);
+    return null;
+  }
 }
 
 // ---- NDA ------------------------------------------------------------------
 
-export async function getActiveNdaTemplate(): Promise<NdaTemplate | null> {
-  await delay(MOCK_LATENCY_MS);
-  // TODO: replace with real GET /nda/active
-  return {
-    id: "mock-nda",
-    version: "v1",
-    title: "SAYeTECH Non-Disclosure Agreement",
-    body:
-      "NDA text placeholder. The full legal text for SAYeTECH's non-disclosure agreement will appear here.",
-    isActive: true,
-    createdAt: new Date().toISOString(),
-  };
+export async function getActiveNdaTemplate(
+  token?: string,
+): Promise<NdaTemplate | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/nda/content`, {
+      headers: token ? authHeaders(token) : undefined,
+    });
+
+    if (!response.ok) {
+      throw new Error(await extractError(response));
+    }
+
+    const content = (await response.json()) as NDAContent;
+    return {
+      id: content.version,
+      version: content.version,
+      title: `SAYeTECH NDA (v${content.version})`,
+      body: content.content,
+      isActive: true,
+      createdAt: content.effective_date,
+    };
+  } catch (error) {
+    console.error("getActiveNdaTemplate error", error);
+    return null;
+  }
 }
 
-export async function acceptNda(payload: {
-  fullName: string;
-}): Promise<{ ok: boolean; error?: string }> {
-  await delay(MOCK_LATENCY_MS);
-  console.log("[mock] acceptNda", payload);
-  // TODO: replace with real POST /nda/accept
-  if (!payload.fullName.trim()) {
-    return { ok: false, error: "Full name is required" };
+export async function acceptNda(
+  token: string,
+  payload: NDAAcceptance,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!token) {
+    return { ok: false, error: "Authentication token is required" };
   }
-  return { ok: true };
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/nda/accept`, {
+      method: "POST",
+      headers: jsonHeaders(token),
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      return { ok: false, error: await extractError(response) };
+    }
+
+    await response.json().catch(() => ({}));
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unable to record NDA acceptance.",
+    };
+  }
 }
 
 // ---- Access requests ------------------------------------------------------
@@ -95,48 +232,33 @@ export interface AccessRequestInput {
 export async function submitAccessRequest(
   input: AccessRequestInput,
 ): Promise<{ ok: boolean; error?: string; record?: AccessRequestRecord }> {
-  // Map frontend shape to backend AccessRequestCreate schema
   const payload = {
     email: input.email,
     full_name: input.fullName,
     company: input.organization,
-    phone: (input as any).phone ?? null,
+    role_title: input.roleTitle || null,
+    investor_type: input.investorType,
     message: input.message ?? null,
   };
 
   try {
-    const res = await fetch(`/api/access-requests`, {
+    const response = await fetch(`${API_BASE_URL}/api/access-requests/`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: jsonHeaders(),
       body: JSON.stringify(payload),
     });
 
-    if (!res.ok) {
-      let message = "Unable to submit request.";
-      try {
-        const errorBody = (await res.json()) as { detail?: string };
-        if (typeof errorBody.detail === "string") {
-          message = errorBody.detail;
-        }
-      } catch {
-        const text = await res.text().catch(() => "");
-        if (text) {
-          message = text;
-        } else {
-          message = `Request failed with status ${res.status}`;
-        }
-      }
-      return {
-        ok: false,
-        error: message,
-      };
+    if (!response.ok) {
+      return { ok: false, error: await extractError(response) };
     }
 
-    const data = (await res.json()) as Record<string, unknown>;
+    const data = (await response.json().catch(() => ({}))) as Record<
+      string,
+      unknown
+    >;
+
     const record: AccessRequestRecord = {
-      id: String((data as any).id ?? (data as any).request_id ?? ""),
+      id: String(data.id ?? data.request_id ?? Date.now()),
       email: input.email,
       fullName: input.fullName,
       organization: input.organization,
@@ -144,12 +266,21 @@ export async function submitAccessRequest(
       investorType: input.investorType,
       message: input.message,
       status: "PENDING",
-      createdAt: new Date().toISOString(),
+      createdAt:
+        typeof data.created_at === "string"
+          ? data.created_at
+          : new Date().toISOString(),
     };
 
     return { ok: true, record };
   } catch (error) {
     console.error("submitAccessRequest error", error);
-    return { ok: false, error: "Unable to submit request at this time." };
+    return {
+      ok: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unable to submit request at this time.",
+    };
   }
 }

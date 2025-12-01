@@ -1,3 +1,3 @@
 # SAYETECH Investor Data Room
 
-A simple Next.js web application for managing and viewing investor data room content.
+A Next.js web application for managing and viewing investor data room content.

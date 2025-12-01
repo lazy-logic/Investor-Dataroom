@@ -1,5 +1,6 @@
 # Dependencies
 web/node_modules/
+node_modules/
 
 # Next.js build output
 web/.next/
@@ -7,6 +8,9 @@ web/.next/
 # Env files
 web/.env.local
 web/.env*.local
+.env
+.env.local
+.env*.local
 
 # Logs
 *.log
