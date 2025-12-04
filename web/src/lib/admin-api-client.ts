@@ -3,12 +3,13 @@ import type {
   PermissionLevelResponse,
   PermissionLevelCreate,
   PermissionLevelUpdate,
+  QAThreadResponse,
 } from './api-types';
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL !== undefined
-    ? process.env.NEXT_PUBLIC_API_BASE_URL
-    : '';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://dataroom-backend-api.onrender.com';
+
+// Default timeout for API requests
+const DEFAULT_TIMEOUT = 30000;
 
 export type AdminRole = 'super_admin' | 'admin' | 'user';
 
@@ -115,7 +116,7 @@ class AdminAPIClient {
     return this.token;
   }
 
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  private async request<T>(endpoint: string, options: RequestInit = {}, timeout: number = DEFAULT_TIMEOUT): Promise<T> {
     const headers: Record<string, string> = {};
 
     if (options.body && !(options.body instanceof FormData)) {
@@ -126,6 +127,10 @@ class AdminAPIClient {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
 
+    // Create abort controller for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
     try {
       const response = await fetch(`${this.baseURL}${endpoint}`, {
         ...options,
@@ -133,7 +138,10 @@ class AdminAPIClient {
           ...headers,
           ...(options.headers as Record<string, string> | undefined),
         },
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       const contentType = response.headers.get('content-type');
       const isJSON = contentType !== null && contentType.includes('application/json');
@@ -163,8 +171,15 @@ class AdminAPIClient {
 
       return {} as T;
     } catch (error) {
+      clearTimeout(timeoutId);
+      
       if (error instanceof APIClientError) {
         throw error;
+      }
+
+      // Handle abort/timeout
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new APIClientError('Request timed out. Please try again.', 0, error);
       }
 
       throw new APIClientError('Network error. Please check your connection.', 0, error);
@@ -417,6 +432,29 @@ class AdminAPIClient {
   async deleteDocument(documentId: string): Promise<unknown> {
     return this.request<unknown>(`/api/documents/${documentId}`, {
       method: 'DELETE',
+    });
+  }
+
+  // ==================== Q&A Admin Endpoints ====================
+
+  /**
+   * Get all Q&A threads (admin view)
+   * GET /api/qa/threads
+   */
+  async getQAThreads(): Promise<QAThreadResponse[]> {
+    return this.request<QAThreadResponse[]>('/api/qa/threads', {
+      method: 'GET',
+    });
+  }
+
+  /**
+   * Answer a question
+   * POST /api/qa/questions/{question_id}/answer
+   */
+  async answerQuestion(questionId: string, payload: { answer_text: string; is_public?: boolean }): Promise<unknown> {
+    return this.request<unknown>(`/api/qa/questions/${questionId}/answer`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
     });
   }
 }

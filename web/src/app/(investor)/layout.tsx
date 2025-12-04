@@ -30,16 +30,22 @@ export default function InvestorLayout({
             Dashboard
           </Link>
           <Link
+            href="/company"
+            className="rounded-md px-3 py-2 text-slate-600 hover:bg-slate-100"
+          >
+            Company Info
+          </Link>
+          <Link
             href="/documents"
             className="rounded-md px-3 py-2 text-slate-600 hover:bg-slate-100"
           >
             Documents
           </Link>
           <Link
-            href="/activity"
+            href="/qa"
             className="rounded-md px-3 py-2 text-slate-600 hover:bg-slate-100"
           >
-            Activity
+            Q&A
           </Link>
         </nav>
       </aside>

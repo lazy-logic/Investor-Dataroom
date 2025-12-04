@@ -8,10 +8,22 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient, APIClientError } from '@/lib/api-client';
-import type { UserResponse, NDAStatus } from '@/lib/api-types';
+import type { NDAStatus } from '@/lib/api-types';
+
+// User type matching AdminResponse from API
+interface User {
+  id: string;
+  email: string;
+  full_name: string;
+  role: string;
+  is_active: boolean;
+  is_super_admin: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 interface AuthContextType {
-  user: UserResponse | null;
+  user: User | null;
   ndaStatus: NDAStatus | null;
   loading: boolean;
   error: string | null;
@@ -30,7 +42,7 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<UserResponse | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [ndaStatus, setNdaStatus] = useState<NDAStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -1,38 +1,74 @@
 /**
  * API Client for SAYeTECH Investor Dataroom
- * Handles all HTTP requests with proper error handling and authentication
+ * Based on OpenAPI spec v2.1.0
  */
 
 import type {
   OTPRequest,
-  OTPResponse,
   OTPVerify,
   TokenResponse,
-  UserResponse,
   NDAContent,
   NDAAcceptance,
   NDAStatus,
-  DocumentCategoryResponse,
   DocumentResponse,
-  AccessRequest,
   AccessRequestUpdate,
   PermissionLevelResponse,
-  APIError,
+  QuestionCreate,
+  QAThreadResponse,
+  ExecutiveSummary,
+  KeyMetric,
+  Milestone,
+  Testimonial,
+  Award,
+  MediaCoverage,
 } from './api-types';
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL !== undefined
-    ? process.env.NEXT_PUBLIC_API_BASE_URL
-    : '';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://dataroom-backend-api.onrender.com';
+
+// Response type for OTP requests
+interface OTPResponseData {
+  success: boolean;
+  message: string;
+  expires_in_minutes?: number;
+  purpose?: string;
+}
+
+// Access request type
+interface AccessRequestData {
+  id: string;
+  email: string;
+  full_name: string;
+  company: string;
+  phone?: string | null;
+  message?: string | null;
+  status: string;
+  admin_notes?: string | null;
+  created_at: string;
+  updated_at: string;
+  expires_at?: string | null;
+}
+
+// Admin response type
+interface AdminResponse {
+  id: string;
+  email: string;
+  username?: string | null;
+  full_name: string;
+  role: string;
+  is_active: boolean;
+  is_super_admin: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 /**
- * Custom API Error class for better error handling
+ * Custom API Error class
  */
 export class APIClientError extends Error {
   constructor(
     message: string,
     public statusCode?: number,
-    public details?: any
+    public details?: unknown
   ) {
     super(message);
     this.name = 'APIClientError';
@@ -43,21 +79,14 @@ export class APIClientError extends Error {
  * Main API Client class
  */
 export class APIClient {
-  private baseURL: string;
   private token: string | null = null;
 
-  constructor(baseURL: string = API_BASE_URL) {
-    this.baseURL = baseURL;
-    
-    // Load token from localStorage on client side
+  constructor() {
     if (typeof window !== 'undefined') {
       this.token = localStorage.getItem('access_token');
     }
   }
 
-  /**
-   * Set authentication token
-   */
   setToken(token: string): void {
     this.token = token;
     if (typeof window !== 'undefined') {
@@ -65,9 +94,6 @@ export class APIClient {
     }
   }
 
-  /**
-   * Clear authentication token
-   */
   clearToken(): void {
     this.token = null;
     if (typeof window !== 'undefined') {
@@ -75,171 +101,155 @@ export class APIClient {
     }
   }
 
-  /**
-   * Get current token
-   */
   getToken(): string | null {
     return this.token;
   }
 
-  /**
-   * Generic request method with error handling
-   */
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
+  private async request<T>(endpoint: string, options: RequestInit = {}, timeout: number = 30000): Promise<T> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
 
-    // Add authorization header if token exists
     if (this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
 
-    try {
-      const response = await fetch(`${this.baseURL}${endpoint}`, {
-        ...options,
-        headers,
-      });
+    const url = `${API_BASE_URL}${endpoint}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-      // Handle non-JSON responses
+    try {
+      const response = await fetch(url, { ...options, headers, signal: controller.signal });
+      clearTimeout(timeoutId);
+      
       const contentType = response.headers.get('content-type');
       const isJSON = contentType?.includes('application/json');
 
       if (!response.ok) {
         let errorMessage = `HTTP ${response.status}`;
-        let errorDetails = null;
-
         if (isJSON) {
-          try {
-            const errorData = await response.json();
-            errorMessage = errorData.detail || errorMessage;
-            errorDetails = errorData;
-          } catch (e) {
-            // Failed to parse error JSON
-          }
+          const errorData = await response.json();
+          errorMessage = errorData.detail || errorMessage;
+          throw new APIClientError(errorMessage, response.status, errorData);
         }
-
-        throw new APIClientError(errorMessage, response.status, errorDetails);
+        throw new APIClientError(errorMessage, response.status);
       }
 
-      // Return parsed JSON or empty object
       if (isJSON) {
         return await response.json();
       }
-
       return {} as T;
     } catch (error) {
-      if (error instanceof APIClientError) {
-        throw error;
+      clearTimeout(timeoutId);
+      if (error instanceof APIClientError) throw error;
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new APIClientError('Request timed out. Please try again.', 0, error);
       }
-
-      // Network or other errors
-      throw new APIClientError(
-        'Network error. Please check your connection.',
-        0,
-        error
-      );
+      throw new APIClientError('Network error. Please check your connection.', 0, error);
     }
   }
 
-  /**
-   * Handle file downloads
-   */
   private async downloadFile(endpoint: string): Promise<Blob> {
     const headers: Record<string, string> = {};
-    
     if (this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
-
-    try {
-      const response = await fetch(`${this.baseURL}${endpoint}`, { headers });
-
-      if (!response.ok) {
-        throw new APIClientError(`Download failed: HTTP ${response.status}`, response.status);
-      }
-
-      return await response.blob();
-    } catch (error) {
-      if (error instanceof APIClientError) {
-        throw error;
-      }
-      throw new APIClientError('Failed to download file', 0, error);
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, { headers });
+    if (!response.ok) {
+      throw new APIClientError(`Download failed: HTTP ${response.status}`, response.status);
     }
+    return response.blob();
+  }
+
+  // ==================== OTP Endpoints ====================
+
+  /** POST /api/otp/request */
+  async requestOTP(email: string, purpose: string = 'access_request'): Promise<OTPResponseData> {
+    return this.request<OTPResponseData>('/api/otp/request', {
+      method: 'POST',
+      body: JSON.stringify({ email, purpose } as OTPRequest),
+    });
+  }
+
+  /** POST /api/otp/verify */
+  async verifyOTP(email: string, otp_code: string, purpose: string = 'login'): Promise<{
+    success?: boolean;
+    message?: string;
+    access_token?: string;
+    token_type?: string;
+    user?: Record<string, unknown>;
+    user_id?: string;
+    user_email?: string;
+    access_request_id?: string;
+  }> {
+    const data = await this.request<{
+      success?: boolean;
+      message?: string;
+      access_token?: string;
+      token_type?: string;
+      user?: Record<string, unknown>;
+      user_id?: string;
+      user_email?: string;
+      access_request_id?: string;
+    }>('/api/otp/verify', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp_code, purpose } as OTPVerify),
+    });
+    if (data.access_token) {
+      this.setToken(data.access_token);
+    }
+    return data;
+  }
+
+  /** POST /api/otp/resend */
+  async resendOTP(email: string, purpose: string = 'access_request'): Promise<OTPResponseData> {
+    return this.request<OTPResponseData>('/api/otp/resend', {
+      method: 'POST',
+      body: JSON.stringify({ email, purpose } as OTPRequest),
+    });
   }
 
   // ==================== Authentication Endpoints ====================
 
-  /**
-   * Request OTP for email login
-   */
-  async requestOTP(email: string): Promise<OTPResponse> {
-    return this.request<OTPResponse>('/api/auth/request-otp', {
+  /** GET /api/admin-auth/me */
+  async getCurrentUser(): Promise<AdminResponse> {
+    return this.request<AdminResponse>('/api/admin-auth/me', { method: 'GET' });
+  }
+
+  // ==================== Access Request Endpoints ====================
+
+  /** POST /api/access-requests/ */
+  async submitAccessRequest(data: {
+    email: string;
+    full_name: string;
+    company: string;
+    phone?: string | null;
+    message?: string | null;
+  }): Promise<{ id: string; message?: string }> {
+    return this.request<{ id: string; message?: string }>('/api/access-requests/', {
       method: 'POST',
-      body: JSON.stringify({ email } as OTPRequest),
+      body: JSON.stringify(data),
     });
   }
 
-  /**
-   * Verify OTP and get access token
-   */
-  async verifyOTP(email: string, otp_code: string): Promise<TokenResponse> {
-    const response = await this.request<TokenResponse>('/api/auth/verify-otp', {
-      method: 'POST',
-      body: JSON.stringify({ email, otp_code } as OTPVerify),
-    });
-    
-    // Automatically set token after successful verification
-    if (response.access_token) {
-      this.setToken(response.access_token);
-    }
-    
-    return response;
+  /** GET /api/access-requests/check/{email} */
+  async checkAccessRequestStatus(email: string): Promise<{ exists: boolean; status?: string }> {
+    return this.request(`/api/access-requests/check/${encodeURIComponent(email)}`, { method: 'GET' });
   }
 
-  /**
-   * Demo auto-login for investor preview
-   * Skips OTP and NDA steps and returns a mock access token
-   */
-  async demoAutoLogin(email: string): Promise<TokenResponse> {
-    const response = await this.request<TokenResponse>('/api/demo/auto-login', {
-      method: 'POST',
-      body: JSON.stringify({ email }),
-    });
-
-    if (response.access_token) {
-      this.setToken(response.access_token);
-    }
-
-    return response;
-  }
-
-  /**
-   * Get current authenticated user
-   */
-  async getCurrentUser(): Promise<UserResponse> {
-    return this.request<UserResponse>('/api/auth/me', {
-      method: 'GET',
-    });
+  /** GET /api/access-requests/{request_id} */
+  async getAccessRequest(requestId: string): Promise<AccessRequestData> {
+    return this.request<AccessRequestData>(`/api/access-requests/${requestId}`, { method: 'GET' });
   }
 
   // ==================== NDA Endpoints ====================
 
-  /**
-   * Get current NDA content
-   */
+  /** GET /api/nda/content */
   async getNDAContent(): Promise<NDAContent> {
-    return this.request<NDAContent>('/api/nda/content', {
-      method: 'GET',
-    });
+    return this.request<NDAContent>('/api/nda/content', { method: 'GET' });
   }
 
-  /**
-   * Accept NDA agreement
-   */
+  /** POST /api/nda/accept */
   async acceptNDA(data: NDAAcceptance): Promise<{ message: string }> {
     return this.request('/api/nda/accept', {
       method: 'POST',
@@ -247,211 +257,150 @@ export class APIClient {
     });
   }
 
-  /**
-   * Check if user has accepted NDA
-   */
+  /** GET /api/nda/status */
   async checkNDAStatus(): Promise<NDAStatus> {
-    return this.request<NDAStatus>('/api/nda/status', {
-      method: 'GET',
-    });
+    return this.request<NDAStatus>('/api/nda/status', { method: 'GET' });
   }
 
   // ==================== Document Endpoints ====================
 
-  /**
-   * Get all document categories
-   */
-  async getCategories(parent_id?: string): Promise<DocumentCategoryResponse[]> {
-    const params = parent_id ? `?parent_id=${parent_id}` : '';
-    return this.request<DocumentCategoryResponse[]>(`/api/documents/categories${params}`, {
-      method: 'GET',
-    });
+  /** GET /api/documents/categories/list */
+  async getCategoriesList(): Promise<string[]> {
+    return this.request<string[]>('/api/documents/categories/list', { method: 'GET' });
   }
 
-  /**
-   * Get specific category
-   */
-  async getCategory(category_id: string): Promise<DocumentCategoryResponse> {
-    return this.request<DocumentCategoryResponse>(`/api/documents/categories/${category_id}`, {
-      method: 'GET',
-    });
+  /** GET /api/documents/ */
+  async listDocuments(params?: { categories?: string; tags?: string; search?: string }): Promise<DocumentResponse[]> {
+    const searchParams = new URLSearchParams();
+    if (params?.categories) searchParams.set('categories', params.categories);
+    if (params?.tags) searchParams.set('tags', params.tags);
+    if (params?.search) searchParams.set('search', params.search);
+    const query = searchParams.toString();
+    return this.request<DocumentResponse[]>(`/api/documents/${query ? `?${query}` : ''}`, { method: 'GET' });
   }
 
-  /**
-   * Get subcategories of a category
-   */
-  async getSubcategories(category_id: string): Promise<DocumentCategoryResponse[]> {
-    return this.request<DocumentCategoryResponse[]>(
-      `/api/documents/categories/${category_id}/subcategories`,
-      { method: 'GET' }
-    );
+  /** GET /api/documents/by-category/{category} */
+  async getDocumentsByCategory(category: string): Promise<DocumentResponse[]> {
+    return this.request<DocumentResponse[]>(`/api/documents/by-category/${encodeURIComponent(category)}`, { method: 'GET' });
   }
 
-  /**
-   * Get documents by category
-   */
-  async getDocumentsByCategory(category_id: string): Promise<DocumentResponse[]> {
-    return this.request<DocumentResponse[]>(
-      `/api/documents/category/${category_id}/documents`,
-      { method: 'GET' }
-    );
+  /** GET /api/documents/{document_id} */
+  async getDocument(documentId: string): Promise<DocumentResponse> {
+    return this.request<DocumentResponse>(`/api/documents/${documentId}`, { method: 'GET' });
   }
 
-  /**
-   * Get specific document details
-   */
-  async getDocument(document_id: string): Promise<DocumentResponse> {
-    return this.request<DocumentResponse>(`/api/documents/${document_id}`, {
-      method: 'GET',
-    });
+  /** GET /api/documents/{document_id}/url */
+  async getDocumentUrl(documentId: string): Promise<{ url: string }> {
+    return this.request(`/api/documents/${documentId}/url`, { method: 'GET' });
   }
 
-  /**
-   * Download a document
-   */
-  async downloadDocument(document_id: string): Promise<Blob> {
-    return this.downloadFile(`/api/documents/${document_id}/download`);
-  }
-
-  /**
-   * View a document (for PDFs and images)
-   */
-  async viewDocument(document_id: string): Promise<Blob> {
-    return this.downloadFile(`/api/documents/${document_id}/view`);
-  }
-
-  /**
-   * Get document versions
-   */
-  async getDocumentVersions(document_id: string): Promise<any[]> {
-    return this.request<any[]>(`/api/documents/${document_id}/versions`, {
-      method: 'GET',
-    });
-  }
-
-  /**
-   * Upload a document (Admin only)
-   */
-  async uploadDocument(formData: FormData): Promise<{ message: string; document_id: string }> {
-    const headers: Record<string, string> = {};
-    
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
-    }
-
-    const response = await fetch(`${this.baseURL}/api/documents/upload`, {
-      method: 'POST',
-      headers,
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new APIClientError(error.detail || 'Upload failed', response.status);
-    }
-
-    return response.json();
-  }
-
-  // ==================== Access Request Endpoints ====================
-
-  /**
-   * Submit access request (Public endpoint)
-   * NOTE: This endpoint doesn't exist in the current backend API
-   * For now, this will return a mock response
-   * TODO: Backend needs to implement POST /api/access-requests
-   */
-  async submitAccessRequest(data: {
-    name: string;
-    email: string;
-    company?: string;
-    message?: string;
-  }): Promise<{ message: string; request_id: string }> {
-    // Call local mock API route so the request appears as a normal 200 in the Network panel
-    return this.request<{ message: string; request_id: string }>('/api/access-requests', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+  /** GET /api/documents/{document_id}/download */
+  async downloadDocument(documentId: string): Promise<Blob> {
+    return this.downloadFile(`/api/documents/${documentId}/download`);
   }
 
   // ==================== Admin Endpoints ====================
 
-  /**
-   * Get access requests (Admin only)
-   */
-  async getAccessRequests(status?: string): Promise<AccessRequest[]> {
-    const params = status ? `?status=${status}` : '';
-    return this.request<AccessRequest[]>(`/api/admin/access-requests${params}`, {
-      method: 'GET',
-    });
+  /** GET /api/admin/access-requests */
+  async getAccessRequests(status?: string): Promise<AccessRequestData[]> {
+    const params = status ? `?request_status=${status}` : '';
+    return this.request<AccessRequestData[]>(`/api/admin/access-requests${params}`, { method: 'GET' });
   }
 
-  /**
-   * Update access request (Admin only)
-   */
-  async updateAccessRequest(
-    request_id: string,
-    data: AccessRequestUpdate
-  ): Promise<{ message: string }> {
-    return this.request(`/api/admin/access-requests/${request_id}`, {
+  /** PUT /api/admin/access-requests/{request_id} */
+  async updateAccessRequest(requestId: string, data: AccessRequestUpdate): Promise<{ message: string }> {
+    return this.request(`/api/admin/access-requests/${requestId}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   }
 
-  /**
-   * Get document access logs (Admin only)
-   */
-  async getDocumentAccessLogs(document_id: string, limit: number = 50): Promise<any[]> {
-    return this.request<any[]>(
-      `/api/documents/${document_id}/access-logs?limit=${limit}`,
-      { method: 'GET' }
-    );
+  /** GET /api/documents/{document_id}/access-logs */
+  async getDocumentAccessLogs(documentId: string, limit: number = 50): Promise<unknown[]> {
+    return this.request(`/api/documents/${documentId}/access-logs?limit=${limit}`, { method: 'GET' });
+  }
+
+  /** GET /api/documents/stats/by-category */
+  async getCategoryStats(): Promise<Record<string, number>> {
+    return this.request('/api/documents/stats/by-category', { method: 'GET' });
   }
 
   // ==================== Permission Endpoints ====================
 
-  /**
-   * Get all permission levels
-   */
+  /** GET /api/permissions/levels */
   async getPermissionLevels(): Promise<PermissionLevelResponse[]> {
-    return this.request<PermissionLevelResponse[]>('/api/permissions/levels', {
-      method: 'GET',
+    return this.request<PermissionLevelResponse[]>('/api/permissions/levels', { method: 'GET' });
+  }
+
+  /** GET /api/permissions/levels/{level_id} */
+  async getPermissionLevel(levelId: string): Promise<PermissionLevelResponse> {
+    return this.request<PermissionLevelResponse>(`/api/permissions/levels/${levelId}`, { method: 'GET' });
+  }
+
+  /** GET /api/permissions/user/{user_id}/permissions */
+  async getUserPermissions(userId: string): Promise<unknown> {
+    return this.request(`/api/permissions/user/${userId}/permissions`, { method: 'GET' });
+  }
+
+  // ==================== Q&A Endpoints ====================
+
+  /** POST /api/qa/questions */
+  async submitQuestion(data: QuestionCreate): Promise<{ id: string; message?: string }> {
+    return this.request('/api/qa/questions', {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   }
 
-  /**
-   * Get specific permission level
-   */
-  async getPermissionLevel(level_id: string): Promise<PermissionLevelResponse> {
-    return this.request<PermissionLevelResponse>(`/api/permissions/levels/${level_id}`, {
-      method: 'GET',
-    });
+  /** GET /api/qa/threads */
+  async getQAThreads(): Promise<QAThreadResponse[]> {
+    return this.request<QAThreadResponse[]>('/api/qa/threads', { method: 'GET' });
   }
 
-  /**
-   * Get user permissions
-   */
-  async getUserPermissions(user_id: string): Promise<any> {
-    return this.request(`/api/permissions/user/${user_id}/permissions`, {
-      method: 'GET',
-    });
+  /** GET /api/qa/search */
+  async searchQA(query: string): Promise<QAThreadResponse[]> {
+    return this.request<QAThreadResponse[]>(`/api/qa/search?q=${encodeURIComponent(query)}`, { method: 'GET' });
+  }
+
+  // ==================== Company Information Endpoints ====================
+
+  /** GET /api/company/executive-summary */
+  async getExecutiveSummary(): Promise<ExecutiveSummary> {
+    return this.request<ExecutiveSummary>('/api/company/executive-summary', { method: 'GET' });
+  }
+
+  /** GET /api/company/metrics */
+  async getKeyMetrics(): Promise<KeyMetric[]> {
+    return this.request<KeyMetric[]>('/api/company/metrics', { method: 'GET' });
+  }
+
+  /** GET /api/company/milestones */
+  async getMilestones(): Promise<Milestone[]> {
+    return this.request<Milestone[]>('/api/company/milestones', { method: 'GET' });
+  }
+
+  /** GET /api/company/testimonials */
+  async getTestimonials(featuredOnly: boolean = false): Promise<Testimonial[]> {
+    return this.request<Testimonial[]>(`/api/company/testimonials${featuredOnly ? '?featured_only=true' : ''}`, { method: 'GET' });
+  }
+
+  /** GET /api/company/awards */
+  async getAwards(): Promise<Award[]> {
+    return this.request<Award[]>('/api/company/awards', { method: 'GET' });
+  }
+
+  /** GET /api/company/media-coverage */
+  async getMediaCoverage(): Promise<MediaCoverage[]> {
+    return this.request<MediaCoverage[]>('/api/company/media-coverage', { method: 'GET' });
   }
 
   // ==================== Health Check ====================
 
-  /**
-   * Check API health
-   */
+  /** GET /health */
   async healthCheck(): Promise<{ status: string }> {
-    return this.request<{ status: string }>('/health', {
-      method: 'GET',
-    });
+    return this.request('/health', { method: 'GET' });
   }
 }
 
-// Export singleton instance
 export const apiClient = new APIClient();
-
-// Export class for testing or multiple instances
 export default APIClient;

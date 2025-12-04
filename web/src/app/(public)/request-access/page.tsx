@@ -2,200 +2,203 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { Alert } from "@/components/ui/alert";
-import { submitAccessRequest, type AccessRequestInput } from "@/lib/api";
-import type { InvestorType } from "@/lib/types";
+import { apiClient, APIClientError } from "@/lib/api-client";
 
 export default function RequestAccessPage() {
-  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [error, setError] = useState("");
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const form = e.currentTarget;
+    const data = new FormData(form);
 
-    const form = e.currentTarget as HTMLFormElement;
-    const formData = new FormData(form);
+    const email = data.get("email")?.toString().trim() || "";
+    const full_name = data.get("full_name")?.toString().trim() || "";
+    const company = data.get("company")?.toString().trim() || "";
 
-    const email = String(formData.get("email") ?? "").trim();
-    const name = String(formData.get("fullName") ?? "").trim();
-    const company = String(formData.get("organization") ?? "").trim();
-    const roleTitle = String(formData.get("roleTitle") ?? "").trim();
-    const investorTypeRaw = String(formData.get("investorType") ?? "").trim();
-    const message = String(formData.get("message") ?? "").trim();
-
-    if (!email || !name || !company) {
-      setErrorMessage("Email, full name, and organization are required.");
+    if (!email || !full_name || !company) {
+      setError("Please fill in all required fields.");
       setStatus("error");
       return;
     }
 
+    setStatus("loading");
+    setError("");
+
     try {
-      setIsSubmitting(true);
-      setErrorMessage(null);
-      setStatus("idle");
-
-      const allowedTypes: InvestorType[] = [
-        "angel",
-        "vc",
-        "family-office",
-        "strategic",
-        "other",
-      ];
-      const typeValue = (investorTypeRaw || "other") as InvestorType;
-      const investorType: InvestorType = allowedTypes.includes(typeValue)
-        ? typeValue
-        : "other";
-
-      const payload: AccessRequestInput = {
+      await apiClient.submitAccessRequest({
         email,
-        fullName: name,
-        organization: company,
-        roleTitle,
-        investorType,
-        message: message || undefined,
-      };
-
-      const result = await submitAccessRequest(payload);
-
-      if (!result.ok) {
-        setErrorMessage(
-          result.error ||
-            "Unable to submit your request. Please try again or contact SAYeTECH.",
-        );
-        setStatus("error");
-        return;
-      }
-
+        full_name,
+        company,
+        phone: data.get("phone")?.toString().trim() || null,
+        message: data.get("message")?.toString().trim() || null,
+      });
       setStatus("success");
     } catch (err) {
-      console.error("Failed to submit access request:", err);
-      setErrorMessage("Unable to submit your request. Please try again.");
+      setError(err instanceof APIClientError ? err.message : "Something went wrong. Please try again.");
       setStatus("error");
-    } finally {
-      setIsSubmitting(false);
     }
   }
 
   if (status === "success") {
     return (
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-        <Card className="border-slate-200 bg-white/90 shadow-sm">
-          <div className="space-y-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-              <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-red-50 flex items-center justify-center px-4">
+        <div className="w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8 text-center">
+            <div className="mx-auto w-20 h-20 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-green-200">
+              <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-              Request Received
-            </h1>
-            <p className="text-sm text-slate-700">
-              We&apos;ve recorded your access request. SAYeTECH will review and contact you
-              by email with next steps and secure access details.
+            <h1 className="text-2xl font-bold text-slate-900 mb-3">Request Submitted!</h1>
+            <p className="text-slate-600 mb-6">
+              We&apos;ll review your request and send you an email once approved. This usually takes 24-48 hours.
             </p>
-            <p className="text-sm text-slate-600">
-              If your request is approved, you&apos;ll receive an email with a secure login
-              link. You&apos;ll sign our NDA digitally and then be taken straight to the
-              investor dashboard.
-            </p>
-            <div className="pt-4">
-              <Link
-                href="/"
-                className="text-sm text-brand-red hover:underline"
-              >
-                ← Back to home
-              </Link>
-            </div>
+            <Link 
+              href="/" 
+              className="inline-flex items-center gap-2 text-brand-red hover:text-brand-red/80 font-medium transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Back to home
+            </Link>
           </div>
-        </Card>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto grid w-full max-w-5xl gap-10 md:grid-cols-2">
-      <div className="space-y-5">
-        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-red">
-          Investor Access Request
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-          Request access to SAYeTECH&apos;s investor data room
-        </h1>
-        <p className="text-sm text-slate-700">
-          Share a few details about yourself and your organization. We&apos;ll review
-          your request, confirm fit, and send you a secure login link.
-        </p>
-        <ul className="space-y-2 text-xs text-slate-600">
-          <li>
-            <span className="font-medium text-slate-800">1.</span> Submit your
-            access request with your fund details.
-          </li>
-          <li>
-            <span className="font-medium text-slate-800">2.</span> SAYeTECH
-            reviews and approves.
-          </li>
-          <li>
-            <span className="font-medium text-slate-800">3.</span> You receive
-            an OTP login &amp; NDA link to enter the data room.
-          </li>
-        </ul>
-        <div className="pt-4">
-          <Link
-            href="/login"
-            className="text-sm text-brand-red hover:underline"
-          >
-            Already have access? Login →
-          </Link>
-        </div>
-      </div>
-      <Card className="border-slate-200 bg-white/95 shadow-sm">
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <Input name="email" label="Email" type="email" required />
-          <Input name="fullName" label="Full name" required />
-          <Input
-            name="organization"
-            label="Organization / Fund"
-            required
-          />
-          <Input name="roleTitle" label="Role / Title" />
-          <div className="flex flex-col gap-1 text-sm">
-            <label className="font-medium text-slate-800">Investor type</label>
-            <select
-              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-red focus-visible:border-brand-red"
-              name="investorType"
-            >
-              <option value="">Select type (optional)</option>
-              <option value="angel">Angel</option>
-              <option value="vc">VC</option>
-              <option value="family-office">Family office</option>
-              <option value="strategic">Strategic</option>
-              <option value="other">Other</option>
-            </select>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-red-50 flex items-center justify-center px-4 py-12">
+      <div className="w-full max-w-md">
+        {/* Card */}
+        <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-brand-red to-red-600 px-8 py-6 text-center">
+            <div className="inline-flex items-center justify-center w-14 h-14 bg-white/20 backdrop-blur rounded-xl mb-4">
+              <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-bold text-white">Request Access</h1>
+            <p className="text-white/80 text-sm mt-1">Join our investor community</p>
           </div>
-          <Textarea
-            name="message"
-            label="Short message (optional)"
-            rows={3}
-            helperText="Optional context or notes for the SAYeTECH team."
-          />
-          {status === "error" && errorMessage && (
-            <Alert variant="error">{errorMessage}</Alert>
-          )}
-          <Button
-            type="submit"
-            variant="cta"
-            className="w-full"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? "Submitting..." : "Request access"}
-          </Button>
-        </form>
-      </Card>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="p-8 space-y-5">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <label htmlFor="email" className="block text-sm font-semibold text-slate-700 mb-2">
+                  Email Address
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  placeholder="you@company.com"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-red/20 focus:border-brand-red focus:bg-white transition-all"
+                />
+              </div>
+
+              <div className="col-span-2 sm:col-span-1">
+                <label htmlFor="full_name" className="block text-sm font-semibold text-slate-700 mb-2">
+                  Full Name
+                </label>
+                <input
+                  id="full_name"
+                  name="full_name"
+                  type="text"
+                  required
+                  autoComplete="name"
+                  placeholder="John Smith"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-red/20 focus:border-brand-red focus:bg-white transition-all"
+                />
+              </div>
+
+              <div className="col-span-2 sm:col-span-1">
+                <label htmlFor="company" className="block text-sm font-semibold text-slate-700 mb-2">
+                  Company
+                </label>
+                <input
+                  id="company"
+                  name="company"
+                  type="text"
+                  required
+                  autoComplete="organization"
+                  placeholder="Acme Ventures"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-red/20 focus:border-brand-red focus:bg-white transition-all"
+                />
+              </div>
+
+              <div className="col-span-2">
+                <label htmlFor="phone" className="block text-sm font-semibold text-slate-700 mb-2">
+                  Phone <span className="text-slate-400 font-normal">(optional)</span>
+                </label>
+                <input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  autoComplete="tel"
+                  placeholder="+1 (555) 123-4567"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-red/20 focus:border-brand-red focus:bg-white transition-all"
+                />
+              </div>
+
+              <div className="col-span-2">
+                <label htmlFor="message" className="block text-sm font-semibold text-slate-700 mb-2">
+                  Message <span className="text-slate-400 font-normal">(optional)</span>
+                </label>
+                <textarea
+                  id="message"
+                  name="message"
+                  rows={3}
+                  placeholder="Tell us about your investment interest..."
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-red/20 focus:border-brand-red focus:bg-white transition-all resize-none"
+                />
+              </div>
+            </div>
+
+            {status === "error" && error && (
+              <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-100 rounded-xl">
+                <svg className="w-5 h-5 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={status === "loading"}
+              className="w-full py-3.5 px-4 bg-gradient-to-r from-brand-red to-red-600 text-white font-semibold rounded-xl hover:from-brand-red/90 hover:to-red-600/90 focus:outline-none focus:ring-2 focus:ring-brand-red focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-red-200 hover:shadow-xl hover:shadow-red-200 active:scale-[0.98]"
+            >
+              {status === "loading" ? (
+                <span className="inline-flex items-center gap-2">
+                  <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Submitting...
+                </span>
+              ) : (
+                "Submit Request"
+              )}
+            </button>
+          </form>
+        </div>
+
+        {/* Footer */}
+        <p className="text-center text-sm text-slate-500 mt-6">
+          Already have access?{" "}
+          <Link href="/login" className="text-brand-red hover:text-brand-red/80 font-semibold transition-colors">
+            Sign in here
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }

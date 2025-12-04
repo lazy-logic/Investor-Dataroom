@@ -1,7 +1,7 @@
-// Backend-agnostic API layer.
-// These functions define the contract between the Next.js app and the backend
-// (e.g. FastAPI). For now, most functions are mocked except where wired to
-// the provided OpenAPI backend.
+/**
+ * API layer for SAYeTECH Investor Dataroom
+ * Direct calls to backend API
+ */
 
 import type {
   AccessRequestRecord,
@@ -17,13 +17,22 @@ import type {
   UserResponse,
 } from "./api-types";
 
-const MOCK_LATENCY_MS = 400;
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ??
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
   "https://dataroom-backend-api.onrender.com";
 
-function delay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function withTimeout<T>(promise: Promise<T>, ms: number, timeoutMessage: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout>;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, ms);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    clearTimeout(timeoutId);
+  }) as Promise<T>;
 }
 
 // ---- Auth / OTP -----------------------------------------------------------
@@ -48,16 +57,29 @@ const authHeaders = (token: string): HeadersInit => ({
   Authorization: `Bearer ${token}`,
 });
 
-export async function requestLoginCode(email: string): Promise<{
+export async function requestLoginCode(
+  email: string,
+  purpose?: "investor_login" | "access_request",
+): Promise<{
   ok: boolean;
   error?: string;
 }> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/auth/request-otp`, {
-      method: "POST",
-      headers: jsonHeaders(),
-      body: JSON.stringify({ email }),
-    });
+    // Build request body - always include purpose with default "access_request"
+    const body = {
+      email,
+      purpose: purpose || "access_request",
+    };
+
+    const response = await withTimeout(
+      fetch(`${API_BASE_URL}/api/otp/request`, {
+        method: "POST",
+        headers: jsonHeaders(),
+        body: JSON.stringify(body),
+      }),
+      15000,
+      "The login service is taking longer than expected. Please check your connection and try again.",
+    );
 
     if (!response.ok) {
       return { ok: false, error: await extractError(response) };
@@ -80,6 +102,7 @@ export async function requestLoginCode(email: string): Promise<{
 export async function verifyLoginCode(
   email: string,
   code: string,
+  purpose?: "investor_login" | "access_request",
 ): Promise<{
   ok: boolean;
   token?: string;
@@ -92,11 +115,22 @@ export async function verifyLoginCode(
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/auth/verify-otp`, {
-      method: "POST",
-      headers: jsonHeaders(),
-      body: JSON.stringify({ email, otp_code: code }),
-    });
+    // Build request body - always include purpose with default "access_request"
+    const body = {
+      email,
+      otp_code: code,
+      purpose: purpose || "access_request",
+    };
+
+    const response = await withTimeout(
+      fetch(`${API_BASE_URL}/api/otp/verify`, {
+        method: "POST",
+        headers: jsonHeaders(),
+        body: JSON.stringify(body),
+      }),
+      15000,
+      "Verification is taking longer than expected. Please check your connection and try again.",
+    );
 
     if (!response.ok) {
       return { ok: false, error: await extractError(response) };
@@ -128,7 +162,8 @@ export async function getCurrentInvestorProfile(
   if (!token) return null;
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+    // Use the correct backend endpoint /api/admin-auth/me
+    const response = await fetch(`${API_BASE_URL}/api/admin-auth/me`, {
       headers: authHeaders(token),
     });
 
@@ -137,16 +172,21 @@ export async function getCurrentInvestorProfile(
       throw new Error(await extractError(response));
     }
 
-    const data = (await response.json()) as UserResponse & {
-      company?: string | null;
-      role?: string | null;
+    const data = (await response.json()) as {
+      id: string;
+      email: string;
+      full_name: string;
+      role: string;
+      is_active: boolean;
+      created_at: string;
+      updated_at: string;
     };
 
     return {
       id: data.id,
-      fullName: data.name ?? data.email,
-      organization: data.company ?? "",
-      roleTitle: data.role ?? "",
+      fullName: data.full_name || data.email,
+      organization: "",
+      roleTitle: data.role || "",
       investorType: "other",
       createdAt: data.created_at,
       updatedAt: data.updated_at,
@@ -232,21 +272,35 @@ export interface AccessRequestInput {
 export async function submitAccessRequest(
   input: AccessRequestInput,
 ): Promise<{ ok: boolean; error?: string; record?: AccessRequestRecord }> {
-  const payload = {
+  // Build payload matching the backend AccessRequestCreate schema
+  const payload: {
+    email: string;
+    full_name: string;
+    company: string;
+    phone?: string | null;
+    message?: string | null;
+  } = {
     email: input.email,
     full_name: input.fullName,
     company: input.organization,
-    role_title: input.roleTitle || null,
-    investor_type: input.investorType,
-    message: input.message ?? null,
+    // Include role title and investor type in the message if provided
+    message: [
+      input.message,
+      input.roleTitle ? `Role: ${input.roleTitle}` : null,
+      input.investorType && input.investorType !== "other" ? `Investor Type: ${input.investorType}` : null,
+    ].filter(Boolean).join("\n") || null,
   };
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/access-requests/`, {
-      method: "POST",
-      headers: jsonHeaders(),
-      body: JSON.stringify(payload),
-    });
+    const response = await withTimeout(
+      fetch(`${API_BASE_URL}/api/access-requests/`, {
+        method: "POST",
+        headers: jsonHeaders(),
+        body: JSON.stringify(payload),
+      }),
+      15000,
+      "The request is taking longer than expected. Please check your connection and try again.",
+    );
 
     if (!response.ok) {
       return { ok: false, error: await extractError(response) };

@@ -118,6 +118,16 @@ export default function AdminLayout({
             Access requests
           </Link>
           <Link
+            href="/admin/qa"
+            className={`flex items-center rounded-md border-l-2 px-3 py-2 text-sm transition-colors ${
+              isActive("/admin/qa")
+                ? "border-brand-red bg-brand-red/5 font-semibold text-slate-900"
+                : "border-transparent text-slate-600 hover:border-brand-red/40 hover:bg-slate-100"
+            }`}
+          >
+            Q&A
+          </Link>
+          <Link
             href="/admin/activity"
             className={`flex items-center rounded-md border-l-2 px-3 py-2 text-sm transition-colors ${
               isActive("/admin/activity")

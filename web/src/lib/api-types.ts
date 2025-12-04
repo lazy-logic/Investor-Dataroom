@@ -7,6 +7,7 @@
 
 export interface OTPRequest {
   email: string;
+  purpose?: 'access_request' | 'investor_login' | string;
 }
 
 export interface OTPResponse {
@@ -18,6 +19,7 @@ export interface OTPResponse {
 export interface OTPVerify {
   email: string;
   otp_code: string;
+  purpose?: 'access_request' | 'investor_login' | string;
 }
 
 export interface TokenResponse {
@@ -61,6 +63,10 @@ export interface NDAStatus {
 
 // ==================== Document Types ====================
 
+/**
+ * Document category - since backend returns string[] for categories,
+ * this is a compatibility type for components that expect objects
+ */
 export interface DocumentCategoryResponse {
   id: string;
   name: string;
@@ -72,34 +78,23 @@ export interface DocumentCategoryResponse {
   created_at: string;
 }
 
-export interface DocumentCategoryCreate {
-  name: string;
-  slug: string;
-  description?: string | null;
-  parent_category_id?: string | null;
-  sort_order?: number;
-}
-
+/**
+ * Document response matching OpenAPI DocumentResponse schema
+ */
 export interface DocumentResponse {
   id: string;
-  category_id: string;
   title: string;
   description: string | null;
-  file_name: string;
+  file_path: string;
+  file_url: string;
   file_type: string;
+  categories: string[];
   file_size: number;
-  version_number: number;
-  is_latest_version: boolean;
-  uploaded_by: string;
   uploaded_at: string;
-  updated_at: string;
-}
-
-export interface DocumentUpload {
-  file: File;
-  title: string;
-  category_id: string;
-  description?: string | null;
+  uploaded_by: string;
+  tags: string[];
+  view_count?: number;
+  download_count?: number;
 }
 
 // ==================== Access Request Types ====================
@@ -152,6 +147,88 @@ export interface PermissionLevelUpdate {
   can_download?: boolean;
   has_expiry?: boolean;
   max_downloads?: number | null;
+}
+
+// ==================== Q&A Types ====================
+
+export interface QuestionCreate {
+  question_text: string;
+  category: string;
+  is_urgent?: boolean;
+}
+
+export interface AnswerCreate {
+  answer_text: string;
+  is_public?: boolean;
+}
+
+export interface QAThreadResponse {
+  id: string;
+  question_text: string;
+  category: string;
+  asked_by: string;
+  asked_at: string;
+  answer_text?: string | null;
+  answered_by?: string | null;
+  answered_at?: string | null;
+  is_public: boolean;
+  is_urgent: boolean;
+  status: string;
+}
+
+// ==================== Company Information Types ====================
+
+export interface ExecutiveSummary {
+  title?: string;
+  tagline?: string;
+  description?: string;
+  highlights?: string[];
+  [key: string]: unknown;
+}
+
+export interface KeyMetric {
+  label: string;
+  value: string | number;
+  change?: string;
+  trend?: 'up' | 'down' | 'neutral';
+  [key: string]: unknown;
+}
+
+export interface Milestone {
+  id?: string;
+  date: string;
+  title: string;
+  description?: string;
+  [key: string]: unknown;
+}
+
+export interface Testimonial {
+  id?: string;
+  author: string;
+  role?: string;
+  company?: string;
+  content: string;
+  featured?: boolean;
+  [key: string]: unknown;
+}
+
+export interface Award {
+  id?: string;
+  title: string;
+  organization?: string;
+  year?: string | number;
+  description?: string;
+  [key: string]: unknown;
+}
+
+export interface MediaCoverage {
+  id?: string;
+  title: string;
+  publication: string;
+  date?: string;
+  url?: string;
+  excerpt?: string;
+  [key: string]: unknown;
 }
 
 // ==================== Error Types ====================

@@ -1,5 +1,13 @@
 "use client";
 
+/**
+ * NDA Acceptance Page
+ * Uses NDAAcceptance schema:
+ * - digital_signature (required, string) - User's full legal name
+ * - ip_address (required, string) - User's IP address
+ * - user_agent (required, string) - Browser user agent
+ */
+
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
