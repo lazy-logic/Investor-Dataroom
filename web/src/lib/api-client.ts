@@ -110,8 +110,13 @@ export class APIClient {
       'Content-Type': 'application/json',
     };
 
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+    // Always get fresh token from localStorage
+    const token = typeof window !== 'undefined' 
+      ? localStorage.getItem('access_token') 
+      : this.token;
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
 
     const url = `${API_BASE_URL}${endpoint}`;

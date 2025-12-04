@@ -123,8 +123,13 @@ class AdminAPIClient {
       headers['Content-Type'] = 'application/json';
     }
 
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+    // Always get fresh token from localStorage
+    const token = typeof window !== 'undefined' 
+      ? window.localStorage.getItem('admin_access_token') 
+      : this.token;
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
 
     // Create abort controller for timeout
