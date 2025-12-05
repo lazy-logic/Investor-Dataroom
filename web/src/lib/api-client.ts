@@ -105,7 +105,7 @@ export class APIClient {
     return this.token;
   }
 
-  private async request<T>(endpoint: string, options: RequestInit = {}, timeout: number = 30000): Promise<T> {
+  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
@@ -120,12 +120,9 @@ export class APIClient {
     }
 
     const url = `${API_BASE_URL}${endpoint}`;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     try {
-      const response = await fetch(url, { ...options, headers, signal: controller.signal });
-      clearTimeout(timeoutId);
+      const response = await fetch(url, { ...options, headers });
       
       const contentType = response.headers.get('content-type');
       const isJSON = contentType?.includes('application/json');
@@ -145,11 +142,7 @@ export class APIClient {
       }
       return {} as T;
     } catch (error) {
-      clearTimeout(timeoutId);
       if (error instanceof APIClientError) throw error;
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new APIClientError('Request timed out. Please try again.', 0, error);
-      }
       throw new APIClientError('Network error. Please check your connection.', 0, error);
     }
   }

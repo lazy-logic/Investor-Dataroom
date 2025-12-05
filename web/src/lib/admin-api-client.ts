@@ -132,10 +132,6 @@ class AdminAPIClient {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    // Create abort controller for timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeout);
-
     try {
       const response = await fetch(`${this.baseURL}${endpoint}`, {
         ...options,
@@ -143,10 +139,7 @@ class AdminAPIClient {
           ...headers,
           ...(options.headers as Record<string, string> | undefined),
         },
-        signal: controller.signal,
       });
-
-      clearTimeout(timeoutId);
 
       const contentType = response.headers.get('content-type');
       const isJSON = contentType !== null && contentType.includes('application/json');
@@ -176,15 +169,8 @@ class AdminAPIClient {
 
       return {} as T;
     } catch (error) {
-      clearTimeout(timeoutId);
-      
       if (error instanceof APIClientError) {
         throw error;
-      }
-
-      // Handle abort/timeout
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new APIClientError('Request timed out. Please try again.', 0, error);
       }
 
       throw new APIClientError('Network error. Please check your connection.', 0, error);
